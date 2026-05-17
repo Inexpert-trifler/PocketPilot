@@ -1,0 +1,23 @@
+{
+  "name": "PocketPilot",
+  "short_name": "PocketPilot",
+  "description": "Smart AI-powered finance for GenZ",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0a0a0c",
+  "theme_color": "#0a0a0c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}
