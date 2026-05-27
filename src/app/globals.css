@@ -73,7 +73,7 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 1rem;
+  --radius: 0.75rem;
   --sidebar: oklch(0.985 0.002 247.839);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
   --sidebar-primary: oklch(0.21 0.006 285.885);
@@ -85,38 +85,38 @@
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0.002 247.839);
-  --card: oklch(0.16 0.005 285.823);
-  --card-foreground: oklch(0.985 0.002 247.839);
-  --popover: oklch(0.141 0.005 285.823);
-  --popover-foreground: oklch(0.985 0.002 247.839);
-  --primary: oklch(0.985 0.002 247.839);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0.002 247.839);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0.002 247.839);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.274 0.006 286.033);
-  --input: oklch(0.274 0.006 286.033);
-  --ring: oklch(0.444 0.011 286.199);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0.002 247.839);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0.002 247.839);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0.002 247.839);
-  --sidebar-border: oklch(0.274 0.006 286.033);
-  --sidebar-ring: oklch(0.444 0.011 286.199);
+  --background: #000000;
+  --foreground: #ededed;
+  --card: #0a0a0a;
+  --card-foreground: #ededed;
+  --popover: #0a0a0a;
+  --popover-foreground: #ededed;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #171717;
+  --secondary-foreground: #ededed;
+  --muted: #171717;
+  --muted-foreground: #a3a3a3;
+  --accent: #171717;
+  --accent-foreground: #ededed;
+  --destructive: #dc2626;
+  --destructive-foreground: #fafafa;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: rgba(255, 255, 255, 0.2);
+  --chart-1: #ffffff;
+  --chart-2: #a3a3a3;
+  --chart-3: #737373;
+  --chart-4: #525252;
+  --chart-5: #404040;
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #ededed;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #171717;
+  --sidebar-accent-foreground: #ededed;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: rgba(255, 255, 255, 0.2);
 }
 
 @layer base {
@@ -124,35 +124,33 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    @apply bg-background text-foreground antialiased;
   }
   html {
     @apply font-sans;
   }
 }
 
-.glass {
-  @apply bg-white/5 backdrop-blur-xl border border-white/10 dark:bg-black/20 dark:border-white/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.1)];
+/* ── Professional surface styles ─────────────────────────── */
+.surface {
+  @apply bg-[#0a0a0a] border border-white/[0.08] rounded-xl;
+}
+
+.surface-elevated {
+  @apply bg-[#121212] border border-white/[0.12] rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.5)];
 }
 
 .text-gradient {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500;
+  @apply text-white;
 }
 
-.bg-gradient-premium {
-  @apply bg-gradient-to-br from-[#0a0a0c] via-[#121217] to-[#0a0a0c];
-}
-
-.hover-lift {
-  @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10;
-}
-
+/* ── Animations ──────────────────────────────────────────── */
 .animate-in-fade {
-  animation: fade-in 0.8s ease-out forwards;
+  animation: fade-in 0.5s ease-out forwards;
 }
 
 .animate-in-slide {
-  animation: slide-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes fade-in {
@@ -160,15 +158,27 @@
   to { opacity: 1; }
 }
 
-@keyframes slide-in {
-  from { transform: translateY(20px); opacity: 0; }
+@keyframes slide-up {
+  from { transform: translateY(12px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* ── Focus styles ────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
 }
