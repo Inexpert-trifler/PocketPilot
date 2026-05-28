@@ -1,6 +1,6 @@
 "use client";
 
-import { PieChart, Wallet, Target, CreditCard, Settings, LogOut, Plus, Receipt, FileText, PenLine, Menu } from "lucide-react";
+import { PieChart, Wallet, Target, CreditCard, Settings, LogOut, Plus, Receipt, FileText, PenLine, Menu, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/transactions", icon: Wallet, label: "Transactions" },
   { href: "/dashboard/goals", icon: Target, label: "Goals" },
   { href: "/dashboard/subscriptions", icon: CreditCard, label: "Subscriptions" },
+  { href: "/dashboard/coach", icon: Sparkles, label: "AI Coach" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -150,7 +151,7 @@ export default function DashboardLayout({
         </Drawer>
 
         <MobileNavItem href="/dashboard/goals" icon={<Target className="w-5 h-5" />} label="Goals" />
-        <MobileNavItem href="/dashboard/settings" icon={<Settings className="w-5 h-5" />} label="Settings" />
+        <MobileNavItem href="/dashboard/coach" icon={<Sparkles className="w-5 h-5" />} label="AI Coach" />
       </nav>
     </div>
   );
