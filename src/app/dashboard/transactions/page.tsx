@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Search, Trash2, Wallet, ShoppingBag } from "lucide-react";
+import { Plus, Search, Trash2, Wallet, ShoppingBag, Download } from "lucide-react";
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -65,6 +65,29 @@ export default function TransactionsPage() {
     return matchesSearch && matchesType;
   });
 
+  const handleExportCSV = () => {
+    if (filtered.length === 0) return;
+    
+    const headers = ["Date", "Description", "Category", "Type", "Amount"];
+    const csvContent = [
+      headers.join(","),
+      ...filtered.map(t => {
+        const date = new Date(t.date).toLocaleDateString();
+        const desc = `"${t.description.replace(/"/g, '""')}"`;
+        return `${date},${desc},${t.category},${t.type},${t.amount}`;
+      })
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "transactions.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6 md:space-y-8 animate-in-fade">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -73,12 +96,22 @@ export default function TransactionsPage() {
           <p className="text-white/50 text-sm md:text-base mt-1">Manage your financial history.</p>
         </div>
         
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full md:w-auto bg-white text-black hover:bg-white/90">
-              <Plus className="w-4 h-4 mr-2" /> Add Transaction
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2 w-full md:w-auto">
+          <Button 
+            variant="outline" 
+            onClick={handleExportCSV}
+            className="w-full md:w-auto bg-white/5 border-white/10 text-white hover:bg-white/10"
+            disabled={filtered.length === 0}
+          >
+            <Download className="w-4 h-4 mr-2" /> Export
+          </Button>
+
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="w-full md:w-auto bg-white text-black hover:bg-white/90">
+                <Plus className="w-4 h-4 mr-2" /> Add Transaction
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[425px] bg-[#0a0a0a] border-white/10 text-white">
             <DialogHeader>
               <DialogTitle>New Transaction</DialogTitle>
@@ -133,6 +166,7 @@ export default function TransactionsPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card className="surface-elevated border-white/10 bg-[#0a0a0a]/50">
