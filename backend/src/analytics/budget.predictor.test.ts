@@ -26,10 +26,17 @@ jest.mock('../utils/logger', () => ({
 
 describe('Budget Predictor', () => {
   const userId = 'test-user-id';
+  const fixedNow = new Date('2026-06-20T12:00:00.000Z');
 
   beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(fixedNow);
     jest.clearAllMocks();
     (getCache as jest.Mock).mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('should return cached prediction if available', async () => {
@@ -43,7 +50,7 @@ describe('Budget Predictor', () => {
   });
 
   it('should calculate predictions correctly for a high risk scenario', async () => {
-    const now = new Date();
+    const now = new Date(fixedNow);
     // Mock current month transactions (High expenses, low income)
     (prisma.transaction.findMany as jest.Mock).mockResolvedValue([
       { amount: 2000, type: 'DEBIT', date: now },
@@ -68,7 +75,7 @@ describe('Budget Predictor', () => {
   });
 
   it('should calculate predictions correctly for a low risk scenario', async () => {
-    const now = new Date();
+    const now = new Date(fixedNow);
     // Mock current month transactions (Low expenses, high income)
     (prisma.transaction.findMany as jest.Mock).mockResolvedValue([
       { amount: 500, type: 'DEBIT', date: now },

@@ -1,6 +1,7 @@
 "use client";
 
-import { PieChart, Wallet, Target, CreditCard, Settings, LogOut, Plus, Receipt, FileText, PenLine, Menu, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { PieChart, Wallet, Target, CreditCard, Settings, LogOut, Plus, Receipt, FileText, PenLine, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import { getProfile, signOut, subscribeToDataChanges, type UserProfile } from "@/lib/api";
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: PieChart, label: "Overview" },
@@ -29,6 +31,27 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      const response = await getProfile();
+      setProfile(response.data);
+    };
+
+    void loadProfile();
+    return subscribeToDataChanges(() => {
+      void loadProfile();
+    });
+  }, []);
+
+  const initials = (profile?.name || "Pilot")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
@@ -47,12 +70,18 @@ export default function DashboardLayout({
         </nav>
 
         <div className="p-3 border-t border-white/[0.06]">
-          <Link href="/">
-            <Button variant="ghost" className="w-full justify-start text-zinc-500 hover:text-white hover:bg-white/[0.04] h-9 text-[13px] font-normal">
-              <LogOut className="w-[18px] h-[18px] mr-2.5" />
-              Sign Out
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-zinc-500 hover:text-white hover:bg-white/[0.04] h-9 text-[13px] font-normal"
+            onClick={() => {
+              void signOut().then(() => {
+                window.location.href = "/";
+              });
+            }}
+          >
+            <LogOut className="w-[18px] h-[18px] mr-2.5" />
+            Sign Out
+          </Button>
         </div>
       </aside>
 
@@ -70,7 +99,7 @@ export default function DashboardLayout({
           <div className="flex items-center gap-3">
             <Link href="/dashboard/settings">
               <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/[0.06] flex items-center justify-center cursor-pointer hover:bg-zinc-700 transition-colors">
-                <span className="text-xs font-medium text-zinc-400">U</span>
+                <span className="text-xs font-medium text-zinc-200">{initials}</span>
               </div>
             </Link>
           </div>

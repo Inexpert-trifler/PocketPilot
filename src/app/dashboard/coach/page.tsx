@@ -1,239 +1,357 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
+import { BrainCircuit, Send, Sparkles, User } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, User, BrainCircuit, Loader2 } from "lucide-react";
-import { getTransactions, getBudgets, getAnalytics, getGoals } from "@/lib/api";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import {
+  getAnalytics,
+  getBudgets,
+  getGoals,
+  getProfile,
+  getTransactions,
+  subscribeToDataChanges,
+  TransactionCategory,
+  type AnalyticsSummary,
+  type Budget,
+  type SavingsGoal,
+  type Transaction,
+  type UserProfile,
+} from "@/lib/api";
 
 type Message = {
   id: string;
   role: "user" | "ai";
   content: string;
-  chartData?: any[];
+  chartData?: Array<{ name: string; spend?: number; limit?: number; spent?: number }>;
   chartType?: "area" | "bar";
+};
+
+type Context = {
+  analytics: AnalyticsSummary | null;
+  budgets: Budget[];
+  goals: SavingsGoal[];
+  profile: UserProfile | null;
+  transactions: Transaction[];
 };
 
 const SUGGESTIONS = [
   "Can I afford AirPods this month?",
   "How much did I spend on food?",
   "Where am I overspending?",
-  "Give me tips to save ₹5,000"
+  "Give me tips to save 5000",
 ];
 
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+
+function buildCoachReply(query: string, context: Context): Message {
+  const lower = query.toLowerCase();
+  const analytics = context.analytics;
+  const transactions = context.transactions;
+  const budgets = context.budgets;
+  const goals = context.goals;
+
+  const defaultReply: Message = {
+    id: `${Date.now()}-ai`,
+    role: "ai",
+    content:
+      "Ask about spending, budgets, subscriptions, or savings goals and I will answer using your current demo data.",
+  };
+
+  if (!analytics) return defaultReply;
+
+  if (lower.includes("afford") || lower.includes("buy") || lower.includes("airpods")) {
+    const goalGap = goals
+      .filter((goal) => goal.status === "ACTIVE")
+      .reduce((sum, goal) => sum + Math.max(0, goal.targetAmount - goal.currentAmount), 0);
+
+    if (analytics.netSavings > 20000 && goalGap < 50000) {
+      return {
+        id: `${Date.now()}-ai`,
+        role: "ai",
+        content: `You have ${formatCurrency(
+          analytics.netSavings
+        )} left after this month's tracked spending. A purchase like AirPods looks affordable, but I would still keep your active goals in view before spending impulsively.`,
+      };
+    }
+
+    return {
+      id: `${Date.now()}-ai`,
+      role: "ai",
+      content: `You are currently sitting at ${formatCurrency(
+        analytics.netSavings
+      )} in month-to-date savings. I would wait a bit before a big discretionary purchase unless you are comfortable slowing your goals.`,
+    };
+  }
+
+  if (
+    lower.includes("food") ||
+    lower.includes("swiggy") ||
+    lower.includes("zomato") ||
+    lower.includes("eat")
+  ) {
+    const foodTransactions = transactions.filter(
+      (transaction) =>
+        transaction.category === TransactionCategory.FOOD &&
+        transaction.type === "EXPENSE"
+    );
+
+    const totalFood = foodTransactions.reduce(
+      (sum, transaction) => sum + transaction.amount,
+      0
+    );
+
+    const trend = analytics.weeklyTrend;
+
+    return {
+      id: `${Date.now()}-ai`,
+      role: "ai",
+      content: `You spent ${formatCurrency(
+        totalFood
+      )} on food this month. Your daily trend is below, and it looks like the biggest spikes came from convenience orders rather than steady essentials.`,
+      chartData: trend,
+      chartType: "area",
+    };
+  }
+
+  if (
+    lower.includes("overspend") ||
+    lower.includes("budget") ||
+    lower.includes("where did my money go")
+  ) {
+    const stressed = budgets.filter(
+      (budget) => budget.amount > 0 && budget.spent >= budget.amount * 0.8
+    );
+
+    if (stressed.length === 0) {
+      return {
+        id: `${Date.now()}-ai`,
+        role: "ai",
+        content:
+          "You are currently inside your tracked budget limits. The next best move is keeping shopping and food steady so the month closes strong.",
+      };
+    }
+
+    return {
+      id: `${Date.now()}-ai`,
+      role: "ai",
+      content: `Your hottest categories right now are ${stressed
+        .map((budget) => budget.category)
+        .join(", ")}. I would prioritize cooling those first before adjusting smaller categories.`,
+      chartData: stressed.map((budget) => ({
+        name: budget.category,
+        spent: budget.spent,
+        limit: budget.amount,
+      })),
+      chartType: "bar",
+    };
+  }
+
+  if (lower.includes("save") || lower.includes("tips")) {
+    const shopping = transactions
+      .filter(
+        (transaction) =>
+          transaction.category === TransactionCategory.SHOPPING &&
+          transaction.type === "EXPENSE"
+      )
+      .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+    const food = transactions
+      .filter(
+        (transaction) =>
+          transaction.category === TransactionCategory.FOOD &&
+          transaction.type === "EXPENSE"
+      )
+      .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+    return {
+      id: `${Date.now()}-ai`,
+      role: "ai",
+      content: `To free up another 5000 this month, start with the categories you can influence quickly: shopping is at ${formatCurrency(
+        shopping
+      )} and food is at ${formatCurrency(
+        food
+      )}. Cutting just a portion of each is more realistic than trying to save everything from one place.`,
+    };
+  }
+
+  return defaultReply;
+}
+
 export default function CoachPage() {
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [context, setContext] = useState<Context>({
+    analytics: null,
+    budgets: [],
+    goals: [],
+    profile: null,
+    transactions: [],
+  });
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       role: "ai",
-      content: "Hi Alex! 👋 I'm your PocketPilot AI. I can analyze your spending, check your budgets, and help you reach your goals faster. What's on your mind today?"
-    }
+      content:
+        "Hi there. I am your PocketPilot coach. Ask about budgets, food spending, affordability, or savings strategy and I will answer from your live demo data.",
+    },
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Pre-load data context for the AI
-  const [context, setContext] = useState<any>({});
 
   useEffect(() => {
     const loadContext = async () => {
-      try {
-        const [txs, budgets, analytics, goals] = await Promise.all([
+      const [transactionsRes, budgetsRes, analyticsRes, goalsRes, profileRes] =
+        await Promise.all([
           getTransactions(),
           getBudgets(),
           getAnalytics(),
-          getGoals()
+          getGoals(),
+          getProfile(),
         ]);
-        setContext({
-          transactions: txs?.data?.transactions || [],
-          budgets: budgets?.data || [],
-          analytics: analytics?.data || null,
-          goals: goals?.data || []
-        });
-      } catch (e) {
-        console.error("Failed to load context", e);
-      }
+
+      setContext({
+        analytics: analyticsRes.data,
+        budgets: budgetsRes.data,
+        goals: goalsRes.data,
+        profile: profileRes.data,
+        transactions: transactionsRes.data.transactions,
+      });
     };
-    loadContext();
+
+    void loadContext();
+    return subscribeToDataChanges(() => {
+      void loadContext();
+    });
   }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [isTyping, messages]);
 
-  const handleSend = async (text: string) => {
+  const handleSend = (text: string) => {
     if (!text.trim()) return;
-    
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content: text };
-    setMessages(prev => [...prev, userMsg]);
+
+    const userMessage: Message = {
+      id: `${Date.now()}-user`,
+      role: "user",
+      content: text,
+    };
+
+    setMessages((current) => [...current, userMessage]);
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI thinking delay
-    setTimeout(() => {
-      generateResponse(text);
-    }, 1200);
-  };
-
-  const generateResponse = (query: string) => {
-    const q = query.toLowerCase();
-    let response: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "ai",
-      content: "I'm still learning! Ask me about your food spending, budgets, or if you can afford a specific purchase."
-    };
-
-    const { transactions, budgets, analytics, goals } = context;
-
-    // Logic 1: Can I afford X?
-    if (q.includes("afford") || q.includes("airpods") || q.includes("buy")) {
-      const netSavings = analytics?.netSavings || 0;
-      if (netSavings > 25000) {
-        response.content = `You currently have **₹${netSavings.toLocaleString()}** in net savings this month! 🎧 Yes, you can comfortably afford AirPods (approx ₹19,900). It will reduce your savings rate, but you'll still be in the green!`;
-      } else {
-        response.content = `AirPods typically cost around ₹19,900. Your net savings right now are **₹${netSavings.toLocaleString()}**. \n\nI recommend waiting until next month or setting up a dedicated Savings Goal so you don't dip into your emergency funds!`;
-      }
-    } 
-    // Logic 2: Food spending
-    else if (q.includes("food") || q.includes("swiggy") || q.includes("zomato") || q.includes("eat")) {
-      const foodTxs = transactions.filter((t: any) => t.category === "FOOD" && t.type === "EXPENSE");
-      const totalFood = foodTxs.reduce((sum: number, t: any) => sum + t.amount, 0);
-      
-      // Group by date for chart
-      const last7Days = Array.from({length: 7}, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
-        return d.toLocaleDateString('en-US', { weekday: 'short' });
-      });
-      
-      const chartData = last7Days.map(dayName => ({ name: dayName, spend: 0 }));
-      foodTxs.forEach((t: any) => {
-        const tDay = new Date(t.date).toLocaleDateString('en-US', { weekday: 'short' });
-        const dayEntry = chartData.find(d => d.name === tDay);
-        if (dayEntry) dayEntry.spend += t.amount;
-      });
-
-      response.content = `You've spent **₹${totalFood.toLocaleString()}** on food recently. 🍔 Here's your food spending trend over the last 7 days. Looks like weekends are your highest spend days!`;
-      response.chartData = chartData;
-      response.chartType = "area";
-    }
-    // Logic 3: Overspending / Budgets
-    else if (q.includes("overspend") || q.includes("budget") || q.includes("where did my money go")) {
-      const overspent = budgets.filter((b: any) => b.spent > b.amount * 0.8);
-      
-      if (overspent.length > 0) {
-        const names = overspent.map((b: any) => b.category).join(" and ");
-        response.content = `I found some areas where you are running hot! 🔥 You are nearing or exceeding your limits in **${names}**. Check out the breakdown below:`;
-        response.chartData = overspent.map((b: any) => ({ name: b.category, spent: b.spent, limit: b.amount }));
-        response.chartType = "bar";
-      } else {
-        response.content = `Great news! 🌟 You are within budget across all your tracked categories. Keep up the disciplined spending!`;
-      }
-    }
-    // Logic 4: Save money tips
-    else if (q.includes("save") || q.includes("tips")) {
-      const shopping = transactions.filter((t: any) => t.category === "SHOPPING").reduce((sum: number, t: any) => sum + t.amount, 0);
-      const food = transactions.filter((t: any) => t.category === "FOOD").reduce((sum: number, t: any) => sum + t.amount, 0);
-      
-      response.content = `To save ₹5,000 this month, let's look at your biggest variables:\n\n1. **Shopping (₹${shopping})**: Delay any non-essential Amazon purchases.\n2. **Food (₹${food})**: Try cooking 3 more meals at home this week.\n\nIf you cut these two by just 20%, you'll easily hit your ₹5,000 savings target! 🎯`;
-    }
-
-    setIsTyping(false);
-    setMessages(prev => [...prev, response]);
+    window.setTimeout(() => {
+      setMessages((current) => [...current, buildCoachReply(text, context)]);
+      setIsTyping(false);
+    }, 900);
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-6rem)] animate-in-fade">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-6 shrink-0">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
           <BrainCircuit className="text-white w-6 h-6" />
         </div>
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">AI Coach</h1>
-          <p className="text-white/50 text-sm">Your personal financial advisor.</p>
+          <p className="text-white/50 text-sm">
+            Personalized guidance for {context.profile?.name || "your"} current money flow.
+          </p>
         </div>
       </div>
 
-      {/* Chat Area */}
       <div className="flex-1 overflow-y-auto hide-scrollbar glass rounded-[2rem] border-white/5 p-4 md:p-6 mb-4 relative flex flex-col gap-6">
         <AnimatePresence initial={false}>
-          {messages.map((msg) => (
+          {messages.map((message) => (
             <motion.div
-              key={msg.id}
+              key={message.id}
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"}`}
+              className={`flex gap-3 max-w-[85%] ${message.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"}`}
             >
-              {/* Avatar */}
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                msg.role === "ai" 
-                  ? "bg-gradient-to-tr from-indigo-500 to-purple-500" 
-                  : "bg-white/10"
-              }`}>
-                {msg.role === "ai" ? <Sparkles className="w-4 h-4 text-white" /> : <User className="w-4 h-4 text-white/70" />}
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                  message.role === "ai"
+                    ? "bg-gradient-to-tr from-indigo-500 to-purple-500"
+                    : "bg-white/10"
+                }`}
+              >
+                {message.role === "ai" ? (
+                  <Sparkles className="w-4 h-4 text-white" />
+                ) : (
+                  <User className="w-4 h-4 text-white/70" />
+                )}
               </div>
 
-              {/* Bubble Content */}
-              <div className={`rounded-2xl px-5 py-3.5 ${
-                msg.role === "user" 
-                  ? "bg-white text-black rounded-tr-sm" 
-                  : "bg-white/5 border border-white/10 text-white/90 rounded-tl-sm"
-              }`}>
+              <div
+                className={`rounded-2xl px-5 py-3.5 ${
+                  message.role === "user"
+                    ? "bg-white text-black rounded-tr-sm"
+                    : "bg-white/5 border border-white/10 text-white/90 rounded-tl-sm"
+                }`}
+              >
                 <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {msg.content.split('**').map((text, i) => i % 2 === 1 ? <strong key={i} className={msg.role === "user" ? "text-black font-bold" : "text-white font-bold"}>{text}</strong> : text)}
+                  {message.content}
                 </div>
 
-                {/* Inline Charts */}
-                {msg.chartData && msg.chartType === "area" && (
+                {message.chartData && message.chartType === "area" ? (
                   <div className="mt-4 h-40 w-full min-w-[250px] md:min-w-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={msg.chartData}>
+                      <AreaChart data={message.chartData}>
                         <defs>
-                          <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                          <linearGradient id="colorSpendCoach" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                         <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#121212', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                          itemStyle={{ color: '#fff' }}
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#121212", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px" }}
+                          itemStyle={{ color: "#fff" }}
                         />
-                        <Area type="monotone" dataKey="spend" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#colorSpend)" />
+                        <Area type="monotone" dataKey="spend" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#colorSpendCoach)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
-                )}
+                ) : null}
 
-                {msg.chartData && msg.chartType === "bar" && (
+                {message.chartData && message.chartType === "bar" ? (
                   <div className="mt-4 h-40 w-full min-w-[250px] md:min-w-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={msg.chartData}>
+                      <BarChart data={message.chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                         <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#121212', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                          cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#121212", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px" }}
+                          cursor={{ fill: "rgba(255,255,255,0.05)" }}
                         />
                         <Bar dataKey="spent" radius={[4, 4, 0, 0]}>
-                          {msg.chartData.map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={entry.spent > entry.limit ? '#ef4444' : '#a855f7'} />
+                          {message.chartData.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={(entry.spent ?? 0) > (entry.limit ?? 0) ? "#ef4444" : "#a855f7"}
+                            />
                           ))}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                )}
+                ) : null}
               </div>
             </motion.div>
           ))}
-          
-          {isTyping && (
+
+          {isTyping ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -248,44 +366,40 @@ export default function CoachPage() {
                 <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 bg-white/50 rounded-full" />
               </div>
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
         <div ref={bottomRef} />
       </div>
 
-      {/* Input Area */}
       <div className="shrink-0 space-y-3">
-        {/* Quick Suggestions */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-          {SUGGESTIONS.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => handleSend(s)}
-              disabled={isTyping}
-              className="whitespace-nowrap px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/70 text-xs font-medium hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50"
+          {SUGGESTIONS.map((suggestion) => (
+            <Button
+              key={suggestion}
+              variant="outline"
+              className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-full"
+              onClick={() => handleSend(suggestion)}
             >
-              {s}
-            </button>
+              {suggestion}
+            </Button>
           ))}
         </div>
 
-        {/* Text Input */}
-        <div className="relative flex items-center">
-          <Input 
+        <div className="glass rounded-[1.5rem] border-white/5 p-3 flex items-center gap-3">
+          <Input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend(input)}
-            placeholder="Ask about your finances..."
-            className="w-full h-14 pl-5 pr-14 rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-purple-500/50"
-            disabled={isTyping}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                handleSend(input);
+              }
+            }}
+            placeholder="Ask about budgets, subscriptions, or savings..."
+            className="border-0 bg-transparent text-white placeholder:text-white/35 focus-visible:ring-0"
           />
-          <Button 
-            size="icon"
-            onClick={() => handleSend(input)}
-            disabled={!input.trim() || isTyping}
-            className="absolute right-2 w-10 h-10 rounded-xl bg-purple-500 hover:bg-purple-600 text-white transition-colors disabled:opacity-50"
-          >
-            {isTyping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
+          <Button className="rounded-full bg-white text-black hover:bg-white/90" onClick={() => handleSend(input)}>
+            <Send className="w-4 h-4" />
           </Button>
         </div>
       </div>

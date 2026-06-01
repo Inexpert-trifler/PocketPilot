@@ -140,8 +140,90 @@
   @apply bg-[#121212] border border-white/[0.12] rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.5)];
 }
 
+/* ── Glassmorphism Cards ─────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.glass-purple {
+  background: rgba(168, 85, 247, 0.05);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 0 40px rgba(168, 85, 247, 0.08), inset 0 1px 0 rgba(168, 85, 247, 0.1);
+}
+
+/* ── Hover Lift ──────────────────────────────────────────── */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Text Gradients ──────────────────────────────────────── */
 .text-gradient {
-  @apply text-white;
+  background: linear-gradient(to right, #a78bfa, #818cf8, #a78bfa);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient 5s linear infinite;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(to right, #fbbf24, #f59e0b, #fbbf24);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient 5s linear infinite;
+}
+
+.text-gradient-green {
+  background: linear-gradient(to right, #34d399, #10b981, #34d399);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient 5s linear infinite;
+}
+
+/* ── Gradient background anim ────────────────────────────── */
+.animate-gradient {
+  background-size: 200% auto;
+  animation: gradient 5s linear infinite;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+  100% { background-position: 0% center; }
+}
+
+/* ── Glow ────────────────────────────────────────────────── */
+.glow-purple {
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.25), 0 0 60px rgba(168, 85, 247, 0.1);
+}
+
+.glow-green {
+  box-shadow: 0 0 30px rgba(52, 211, 153, 0.25), 0 0 60px rgba(52, 211, 153, 0.1);
+}
+
+.glow-red {
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.25), 0 0 60px rgba(239, 68, 68, 0.1);
 }
 
 /* ── Animations ──────────────────────────────────────────── */
@@ -168,6 +250,25 @@
   50% { opacity: 0.7; }
 }
 
+/* ── Marquee Animations ──────────────────────────────────── */
+.animate-marquee {
+  animation: marquee 35s linear infinite;
+}
+
+.animate-marquee-reverse {
+  animation: marquee-reverse 35s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes marquee-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
 /* ── Scrollbar ───────────────────────────────────────────── */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
@@ -177,8 +278,50 @@
   scrollbar-width: none;
 }
 
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 /* ── Focus styles ────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline: 2px solid rgba(168, 85, 247, 0.6);
   outline-offset: 2px;
+}
+
+/* ── Recharts tooltip fix ────────────────────────────────── */
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+/* ── Progress ring animation ─────────────────────────────── */
+@keyframes progress-ring {
+  from { stroke-dashoffset: 280; }
+}
+
+.progress-ring-circle {
+  animation: progress-ring 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Celebration confetti ────────────────────────────────── */
+@keyframes confetti-fall {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(120px) rotate(720deg); opacity: 0; }
+}
+
+.confetti-piece {
+  animation: confetti-fall 1.5s ease-in forwards;
 }
