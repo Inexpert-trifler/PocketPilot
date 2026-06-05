@@ -2,6 +2,7 @@
 
 <div align="center">
 
+
 ![PocketPilot Banner](https://via.placeholder.com/1200x400?text=PocketPilot)
 
 ### Your AI-Powered Financial Co-Pilot for Student Life 🚀
